@@ -14,7 +14,7 @@
 #include <Tools/utils.h>
 #include <reactor.h>
 
-#include <INIReader.h>
+#include <inih/INIReader.h>
 
 #include <ReverseTale.h>
 #if HAVE_EXPERIMENTAL_FS
