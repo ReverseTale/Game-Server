@@ -17,6 +17,7 @@ if (${ReverseTale_DEV})
     include_directories(${CMAKE_SOURCE_DIR}/src/Library/include)
     include_directories(${CMAKE_SOURCE_DIR}/src/Common-Server/src)
 else()
+    find_package(ReverseTale-Library        REQUIRED)
     find_package(ReverseTale-CommonServer   REQUIRED)
 endif()
 
