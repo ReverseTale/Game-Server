@@ -49,6 +49,7 @@ int main(int argc, char** argv)
 	reactor.start(4006);
 
 	Database::initialize({}, "login");
+	Database::initialize({}, "characters");
 	assert(gPool->getActiveWorkerCount() < gPool->getWorkerCount() && "Not enought threads to continue");
 
 	while (true)

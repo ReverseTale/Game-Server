@@ -27,6 +27,16 @@ using bsoncxx::builder::stream::finalize;
 
 extern boost::lockfree::queue<AbstractWork*> asyncWork;
 
+struct PacketHandler
+{
+	std::string opcode;
+	WorkType worker;
+};
+
+PacketHandler packetHandler[] = {
+	{"Char_NEW", MAKE_WORK(&Client::createCharacter) },
+	{"", nullptr}
+};
 
 Client::Client() :
 	_currentWork(MAKE_WORK(&Client::handleConnect))
@@ -38,6 +48,17 @@ bool Client::workRouter(AbstractWork* work)
 	if (_currentWork != nullptr)
 	{
 		return (this->*_currentWork)(work);
+	}
+
+	PacketHandler* currentHandler = &packetHandler[0];
+	while (currentHandler->worker != nullptr)
+	{
+		if (currentHandler->opcode == ((ClientWork*)work)->packet().tokens()[1])
+		{
+			return (this->*currentHandler->worker)(work);
+		}
+
+		++currentHandler;
 	}
 
 	return true;
@@ -97,21 +118,62 @@ bool Client::sendConnectionResult(FutureWork<bool>* work)
 {
 	if (work->get())
 	{
-		/*<< clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.-1.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0*/
+		auto future = gDB("characters")->query<bool>([this](mongocxx::database db) {
+			bsoncxx::builder::stream::document filter_builder;
+			filter_builder << "user" << _username;
 
-		Packet* clist_start = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_start 0"));
-		Packet* clist_0 = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0"));
-		Packet* clist_end = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_end"));
+			_characters.clear();
 
-		// TODO: Not working
-		//Packet* clist_all = *clist_0 + *clist_end;
+			auto cursor = db["characters"].find(filter_builder.view());
+			for (auto&& doc : cursor)
+			{
+				_characters.emplace_back(new Character{ doc["slot"].get_int32(), doc["_id"].get_utf8().value.to_string(), (Sex)(int)doc["sex"].get_int32(), doc["hair"].get_int32(), doc["color"].get_int32(), doc["level"].get_int32() });
 
-		clist_start->send(this);
-		clist_0->send(this);
-		clist_end->send(this);
+				std::cout << "New char: " << std::endl <<
+					"\t" << _characters[0]->name << std::endl <<
+					"\t" << _characters[0]->color << std::endl;
+			}
 
+			return true;
+		});
+
+		asyncWork.push(new FutureWork<bool>(this, MAKE_WORK(&Client::sendCharactersList), std::move(future)));
 		_currentWork = nullptr;
+		return true;
+	}
+	
+	return false;
+}
 
+bool Client::sendCharactersList(FutureWork<bool>* work)
+{
+	if (work->get())
+	{
+		/*<< clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.-1.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0*/
+		Packet* clist_start = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_start 0"));
+		clist_start->send(this);
+
+
+		for (auto&& pj : _characters)
+		{
+			// "clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0"
+			Packet* clist = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist "));
+			*clist << (int)pj->slot << ' ';
+			*clist << pj->name << " 0 ";
+			*clist << (int)pj->sex << ' ';
+			*clist << (int)pj->hair << ' ';
+			*clist << (int)pj->color << ' ';
+			*clist << "0 0 " << (int)pj->level << ' ';
+			*clist << "-1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
+
+			std::cout << clist->data().get() << std::endl;
+
+			clist->send(this);
+		}
+				
+		Packet* clist_end = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_end"));
+		clist_end->send(this);
+		
 		return true;
 	}
 	else
@@ -119,6 +181,47 @@ bool Client::sendConnectionResult(FutureWork<bool>* work)
 		sendError("User not found");
 		return false;
 	}
+}
+
+bool Client::createCharacter(ClientWork* work)
+{
+	auto name = work->packet().tokens().str(2);
+	auto slot = work->packet().tokens().from_int<uint8_t>(3);
+	auto sex = work->packet().tokens().from_int<uint8_t>(4);
+	auto hair = work->packet().tokens().from_int<uint8_t>(5);
+	auto color = work->packet().tokens().from_int<uint8_t>(6);
+
+	if (name.length() <= 4 || slot > 2 || sex > 1 || hair > 1 || color > 9)
+	{
+		return false;
+	}
+
+	auto future = gDB("characters")->query<bool>([this, name, slot, sex, hair, color](mongocxx::database db) {
+		auto character = document{} << 
+			"_id" << name << 
+			"slot" << slot <<
+			"user" << _username <<
+			"sex" << sex <<
+			"hair" << hair << 
+			"color" << color <<
+			"level" << (int)1 <<
+			finalize;
+
+		try
+		{
+			db["characters"].insert_one(character.view());
+		}
+		catch (std::exception e)
+		{
+			return false;
+		}
+
+		return true;
+	});
+
+	asyncWork.push(new FutureWork<bool>(this, MAKE_WORK(&Client::sendConnectionResult), std::move(future)));
+
+	return true;
 }
 
 void Client::sendError(std::string&& error)
