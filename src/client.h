@@ -43,6 +43,8 @@ public:
 	bool sendCharactersList(FutureWork<bool>* work);
 
 	bool createCharacter(ClientWork* work);
+	bool deleteCharacter(ClientWork* work);
+	bool confirmDeleteCharacter(FutureWork<int>* work);
 
 public:
 	Client();

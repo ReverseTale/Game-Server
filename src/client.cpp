@@ -35,6 +35,7 @@ struct PacketHandler
 
 PacketHandler packetHandler[] = {
 	{"Char_NEW", MAKE_WORK(&Client::createCharacter) },
+	{"Char_DEL", MAKE_WORK(&Client::deleteCharacter) },
 	{"", nullptr}
 };
 
@@ -130,8 +131,8 @@ bool Client::sendConnectionResult(FutureWork<bool>* work)
 				_characters.emplace_back(new Character{ doc["slot"].get_int32(), doc["_id"].get_utf8().value.to_string(), (Sex)(int)doc["sex"].get_int32(), doc["hair"].get_int32(), doc["color"].get_int32(), doc["level"].get_int32() });
 
 				std::cout << "New char: " << std::endl <<
-					"\t" << _characters[0]->name << std::endl <<
-					"\t" << _characters[0]->color << std::endl;
+					"\t" << _characters.back()->name << std::endl <<
+					"\t" << _characters.back()->color << std::endl;
 			}
 
 			return true;
@@ -153,25 +154,37 @@ bool Client::sendCharactersList(FutureWork<bool>* work)
 		Packet* clist_start = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_start 0"));
 		clist_start->send(this);
 
+		// "clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0"
+
+		Packet* clist_all = gFactory->make(PacketType::SERVER_GAME, &_session, NString());
 
 		for (auto&& pj : _characters)
 		{
-			// "clist 0 Blipi 0 0 1 4 0 0 2 -1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0"
-			Packet* clist = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist "));
-			*clist << (int)pj->slot << ' ';
+			Packet* clist = gFactory->make(PacketType::SERVER_GAME, &_session, NString());
+			*clist << "clist " << (int)pj->slot << ' ';
 			*clist << pj->name << " 0 ";
 			*clist << (int)pj->sex << ' ';
 			*clist << (int)pj->hair << ' ';
 			*clist << (int)pj->color << ' ';
 			*clist << "0 0 " << (int)pj->level << ' ';
-			*clist << "-1.12.1.8.-1.10.-1.-1 1  1 1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
 
+			if (pj->slot == 0)
+			{
+				*clist << "-1.12.1.8.-1.-1.-1.-1 1 1  1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
+			}
+			else
+			{
+				*clist << "-1.-1.-1.-1.-1.-1.-1.-1 1 1 1 -1 0";
+			}
+
+			std::cout << "Sending player " << pj->name << std::endl;
 			std::cout << clist->data().get() << std::endl;
 
-			clist->send(this);
+			clist_all = *clist_all + *clist;
 		}
-				
+
 		Packet* clist_end = gFactory->make(PacketType::SERVER_GAME, &_session, NString("clist_end"));
+		clist_all->send(this);
 		clist_end->send(this);
 		
 		return true;
@@ -185,6 +198,11 @@ bool Client::sendCharactersList(FutureWork<bool>* work)
 
 bool Client::createCharacter(ClientWork* work)
 {
+	if (work->packet().tokens().length() != 7)
+	{
+		return false;
+	}
+
 	auto name = work->packet().tokens().str(2);
 	auto slot = work->packet().tokens().from_int<uint8_t>(3);
 	auto sex = work->packet().tokens().from_int<uint8_t>(4);
@@ -222,6 +240,54 @@ bool Client::createCharacter(ClientWork* work)
 	asyncWork.push(new FutureWork<bool>(this, MAKE_WORK(&Client::sendConnectionResult), std::move(future)));
 
 	return true;
+}
+
+bool Client::deleteCharacter(ClientWork* work)
+{
+	if (work->packet().tokens().length() == 4)
+	{
+		int slot = work->packet().tokens().from_int<int>(2);
+		std::string password = work->packet().tokens().str(3);
+
+		auto future = gDB("login")->query<int>([this, password, slot](mongocxx::database db) {
+			bsoncxx::builder::stream::document filter_builder;
+			filter_builder << "_id" << _username << "password" << password;
+
+			if (db["users"].count(filter_builder.view()) == 1)
+			{
+				return slot;
+			}
+
+			return -1;
+		});
+
+		asyncWork.push(new FutureWork<int>(this, MAKE_WORK(&Client::confirmDeleteCharacter), std::move(future)));
+		return true;
+	}
+
+	return false;
+}
+
+bool Client::confirmDeleteCharacter(FutureWork<int>* work)
+{
+	int slot = work->get();
+
+	if (slot >= 0)
+	{
+		auto future = gDB("characters")->query<bool>([this, slot](mongocxx::database db) {
+			bsoncxx::builder::stream::document filter_builder;
+			filter_builder << "user" << _username << "slot" << slot;
+
+			db["characters"].delete_one(filter_builder.view());
+			return true;
+		});
+
+		asyncWork.push(new FutureWork<bool>(this, MAKE_WORK(&Client::sendConnectionResult), std::move(future)));
+		return true;
+	}
+	
+	// FIXME: Password was not correct, do not disconnect but send an error
+	return false;
 }
 
 void Client::sendError(std::string&& error)
