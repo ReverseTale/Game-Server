@@ -70,6 +70,8 @@ public:
 	bool receivedLBS(ClientWork* work);
 	bool receivedNPINFO(ClientWork* work);
 
+	bool processWalk(ClientWork* work);
+
 public:
 	Client();
 
