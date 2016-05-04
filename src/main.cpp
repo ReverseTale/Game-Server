@@ -29,6 +29,7 @@ namespace fs = std::experimental::filesystem;
 #include "asyncwork.h"
 #include "client.h"
 #include "map_manager.h"
+#include "world_handler.h"
 
 
 using namespace Net;
@@ -53,6 +54,8 @@ int main(int argc, char** argv)
 	Database::initialize({}, "world");
 	assert(gPool->getActiveWorkerCount() < gPool->getWorkerCount() && "Not enought threads to continue");
 
+	printf("%d / %d\n", gPool->getActiveWorkerCount(), gPool->getWorkerCount());
+
 	while (true)
 	{
 		while (!asyncWork.empty())
@@ -60,9 +63,9 @@ int main(int argc, char** argv)
 			AbstractWork* work;
 			if (asyncWork.pop(work))
 			{
-				if (!(*work)())
+				if (!(*work)(WorldHandler::get()))
 				{
-					work->client()->sendError("Input inesperado");
+					WorldHandler::get()->sendError(work->client(), "Input inesperado");
 					work->client()->close();
 					delete work;
 				}
@@ -70,7 +73,7 @@ int main(int argc, char** argv)
 		}
 
 		MapManager::get()->update();
-		//gPool->waitAll();
+		gPool->waitAll();
 
 		// TODO: Have a constant heartbeat
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));

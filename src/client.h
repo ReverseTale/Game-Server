@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include <asyncwork.h>
+#include "asyncwork.h"
 #include <Tools/utils.h>
 #include <Tools/accepted_socket.h>
 
@@ -53,32 +53,13 @@ struct Character
 
 class Client : public AcceptedSocket
 {
-public:
-	bool workRouter(AbstractWork* work);
-	bool handleConnect(ClientWork* work);
-	bool handleUserCredentials(ClientWork* work);
-	bool handlePasswordCredentials(ClientWork* work);
-	bool sendConnectionResult(FutureWork<bool>* work);
-	bool sendCharactersList(FutureWork<bool>* work);
-
-	bool createCharacter(ClientWork* work);
-	bool deleteCharacter(ClientWork* work);
-	bool confirmDeleteCharacter(FutureWork<int>* work);
-
-	bool gameStartInitialize(ClientWork* work);
-	bool gameStartConfirmation(ClientWork* work);
-	bool receivedLBS(ClientWork* work);
-	bool receivedNPINFO(ClientWork* work);
-
-	bool processWalk(ClientWork* work);
-	bool chatMessage(ClientWork* work);
+	friend class WorldHandler;
 
 public:
 	Client();
 
 	inline Utils::Game::Session* session() { return &_session; }
 	void onRead(NString packet);
-	void sendError(std::string&& error);
 
 private:
 	Utils::Game::Session _session;

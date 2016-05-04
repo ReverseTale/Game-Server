@@ -22,7 +22,7 @@ else()
 endif()
 
 # ---[ Add definitions and executable
-add_definitions(-DMONGOCXX_STATIC -DBSONCXX_STATIC)
+add_definitions(-DMONGOCXX_STATIC -DBSONCXX_STATIC -D_SCL_SECURE_NO_WARNINGS)
 add_executable(ReverseTale-GameServer ${GameServer_SOURCES})
 
 # ---[ Link dependencies libraries
