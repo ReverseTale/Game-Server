@@ -41,6 +41,8 @@ public:
 	}
 	
 public:
+	uint32_t getFreeID();
+
 	bool workRouter(AbstractWork* work);
 
 	bool handleConnect(ClientWork* work);
@@ -68,6 +70,8 @@ private:
 
 private:
 	static WorldHandler* _instance;
-
 	std::map<std::string, PacketHandler::Handle*> _packetHandler;
+
+	uint32_t _currentFreeID;
+	std::list<uint32_t> _reusableIDs;
 };

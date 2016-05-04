@@ -37,20 +37,21 @@ WorldHandler* WorldHandler::_instance = nullptr;
 
 
 PacketHandler packetHandler[] = {
-	{ "Char_NEW",	{ CurrentPhase::SELECTION_SCREEN, MAKE_WORK(&WorldHandler::createCharacter) } },
-	{ "Char_DEL",	{ CurrentPhase::SELECTION_SCREEN, MAKE_WORK(&WorldHandler::deleteCharacter) } },
-	{ "select",		{ CurrentPhase::SELECTION_SCREEN, MAKE_WORK(&WorldHandler::gameStartInitialize) } },
-	{ "game_start", { CurrentPhase::SELECTION_SCREEN, MAKE_WORK(&WorldHandler::gameStartConfirmation) } },
-	{ "lbs",		{ CurrentPhase::INGAME,			MAKE_WORK(&WorldHandler::receivedLBS) } },
-	{ "npinfo",		{ CurrentPhase::INGAME,			MAKE_WORK(&WorldHandler::receivedNPINFO) } },
-	{ "walk",		{ CurrentPhase::INGAME,			MAKE_WORK(&WorldHandler::processWalk) } },
-	{ "say",		{ CurrentPhase::INGAME,			MAKE_WORK(&WorldHandler::chatMessage) } },
+	{ "Char_NEW",	{ CurrentPhase::SELECTION_SCREEN,	MAKE_WORK(&WorldHandler::createCharacter) } },
+	{ "Char_DEL",	{ CurrentPhase::SELECTION_SCREEN,	MAKE_WORK(&WorldHandler::deleteCharacter) } },
+	{ "select",		{ CurrentPhase::SELECTION_SCREEN,	MAKE_WORK(&WorldHandler::gameStartInitialize) } },
+	{ "game_start", { CurrentPhase::SELECTION_SCREEN,	MAKE_WORK(&WorldHandler::gameStartConfirmation) } },
+	{ "lbs",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::receivedLBS) } },
+	{ "npinfo",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::receivedNPINFO) } },
+	{ "walk",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::processWalk) } },
+	{ "say",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::chatMessage) } },
 
 	{ "", { CurrentPhase::NONE, nullptr } }
 };
 
 
-WorldHandler::WorldHandler()
+WorldHandler::WorldHandler() :
+	_currentFreeID(1)
 {
 	PacketHandler* currentHandler = &packetHandler[0];
 	while (currentHandler->handle.worker != nullptr)
@@ -58,6 +59,25 @@ WorldHandler::WorldHandler()
 		_packetHandler.emplace(currentHandler->opcode, &currentHandler->handle);
 		++currentHandler;
 	}
+}
+
+uint32_t WorldHandler::getFreeID()
+{
+	if (!_reusableIDs.empty())
+	{
+		uint32_t id = _reusableIDs.front();
+		_reusableIDs.pop_front();
+		return id;
+	}
+
+	uint32_t id = _currentFreeID + 1;
+	if (id < _currentFreeID)
+	{
+		assert(false && "Run out of IDs");
+	}
+
+	++_currentFreeID;
+	return id;
 }
 
 bool WorldHandler::workRouter(AbstractWork* work)
@@ -74,7 +94,10 @@ bool WorldHandler::workRouter(AbstractWork* work)
 	if (it != self->_packetHandler.end())
 	{
 		auto handler = it->second;
-		return (WorldHandler::get()->*handler->worker)(work);
+		if (handler->type == work->client()->_phase)
+		{
+			return (WorldHandler::get()->*handler->worker)(work);
+		}
 	}
 
 	// TODO: Heartbeat and so on
@@ -341,6 +364,11 @@ bool WorldHandler::gameStartInitialize(ClientWork* work)
 			if (pj->slot == slot)
 			{
 				client->_currentCharacter = pj;
+
+				// FIXME: HP/MP from DB?
+				pj->hp = pj->maxHP;
+				pj->mp = pj->maxMP;
+
 				break;
 			}
 		}
@@ -374,48 +402,28 @@ bool WorldHandler::receivedLBS(ClientWork* work)
 	Packet* packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("tit ") << client->_currentCharacter->title << " " << client->_currentCharacter->name);
 	packet->send(client);
 
+	// Fama difnidad
 	packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("fd 0 1 0 1"));
 	packet->send(client);
 
-	client->_ingameID = 123;
+	client->_ingameID = getFreeID();
+	printf("Client using ID: %d\n", client->_ingameID);
+	client->sendCharacterInformation();
 
-	//c_info[Nombre] - -1 -1 - [INGAME_ID][SLOT][SEXO][PELO][COLOR] 0[LVL] 0 0 0 0 0 0
-	Packet* cinfo = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("c_info "));
-	*cinfo << client->_currentCharacter->name << ' ';
-	*cinfo << "- -1 -1 - ";
-	*cinfo << client->_ingameID << ' ';
-	*cinfo << (int)client->_currentCharacter->slot << ' ';
-	*cinfo << (int)client->_currentCharacter->sex << ' ';
-	*cinfo << (int)client->_currentCharacter->hair << ' ';
-	*cinfo << (int)client->_currentCharacter->color << ' ';
-	*cinfo << "0 " << (int)client->_currentCharacter->level << " 0 0 0 0 0 0";
-	cinfo->send(client);
 
+	// [POS.ID.CALIDAD.MEJORA.??]
 	Packet* equip = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("equip 0 0 0.1.0.0.0 1.12.0.0.0 5.8.0.0.0"));
 	equip->send(client);
 
-	// lev[LVL][XP][LVL_PROF][XP_PROF][XP_NEXT_LEVEL][XP_NEXT_PROF] 0[NEXT_LVL]
-	Packet* lev = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("lev "));
-	*lev << (int)client->_currentCharacter->level << ' ' << client->_currentCharacter->experience << ' ';
-	*lev << (int)client->_currentCharacter->profession.level << ' ' << client->_currentCharacter->profession.experience << ' ';
-	*lev << 300 << ' ' << 500 << ' ';
-	*lev << 0 << ' ' << (int)(client->_currentCharacter->level + 1);
-	lev->send(client);
-
-	Packet* stat = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("stat "));
-	*stat << client->_currentCharacter->maxHP << ' ' << client->_currentCharacter->maxHP << ' ';
-	*stat << client->_currentCharacter->maxMP << ' ' << client->_currentCharacter->maxMP << ' ';
-	*stat << 0 << ' ' << 1024;
-	stat->send(client);
+	client->sendCharacterLevel();
+	client->sendCharacterStatus();
 
 	Packet* ski = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("ski 200 201 200 201 209"));
 	ski->send(client);
 
-	Packet* at = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("at ") << client->_ingameID << " 1 52 135 2 0 0 1 -1");
-	at->send(client);
-
-	Packet* cmap = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cmap 0 1 1"));
-	cmap->send(client);
+	MapManager::get()->map(1)->addPlayer(work->client());
+	client->sendCharacterPosition();
+	client->sendCharacterMap();
 
 	Packet* sc = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("sc 0 0 30 38 30 4 70 1 0 32 34 41 2 70 0 17 34 19 34 17 0 0 0 0"));
 	sc->send(client);
@@ -466,6 +474,8 @@ bool WorldHandler::receivedLBS(ClientWork* work)
 bool WorldHandler::receivedNPINFO(ClientWork* work)
 {
 	auto client = work->client();
+
+	// Acto
 	Packet* script = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("script 1 27"));
 	script->send(client);
 
@@ -520,6 +530,7 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 	Packet* inv7 = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("inv 7"));
 	inv7->send(client);
 
+	// gold [cantidad] ?
 	Packet* gold = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("gold 0 0"));
 	gold->send(client);
 
@@ -610,8 +621,6 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 		Packet* spawn = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(msg));
 		spawn->send(client);
 	}
-	
-	MapManager::get()->map(1)->addPlayer(work->client());
 
 	return true;
 }
@@ -623,9 +632,22 @@ bool WorldHandler::processWalk(ClientWork* work)
 	// cond 1 171370 0 0 11
 	if (work->packet().tokens().length() == 6)
 	{
+		int x = work->packet().tokens().from_int<int>(2);
+		int y = work->packet().tokens().from_int<int>(3);
+		int speed = work->packet().tokens().from_int<int>(5);
+
 		auto client = work->client();
-		Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->_ingameID << " 0 0 11");
+
+		// TODO: Pathfinding
+		client->pos().x = x;
+		client->pos().y = y;
+
+		Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->_ingameID << " 0 0 " << speed);
 		cond->send(client);
+
+		Packet* mv = gFactory->make(PacketType::SERVER_GAME, nullptr, NString("mv 1 ") << client->_ingameID << ' ' << x << ' ' << y << ' ' << speed);
+		std::cout << "Broadcasting: " << mv->data().get() << std::endl;
+		client->getMap()->broadcastPacket(mv);
 	}
 
 	return true;

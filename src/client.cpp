@@ -36,8 +36,61 @@ extern boost::lockfree::queue<AbstractWork*> asyncWork;
 Client::Client() :
 	_currentWork(MAKE_WORK(&WorldHandler::handleConnect)),
 	_phase(CurrentPhase::SELECTION_SCREEN),
-	_currentCharacter(nullptr)
+	_currentCharacter(nullptr),
+	_currentMap(nullptr),
+	_position{ 52, 135 }
 {}
+
+void Client::sendCharacterInformation()
+{
+	Packet* cinfo = gFactory->make(PacketType::SERVER_GAME, &_session, NString("c_info "));
+	*cinfo << _currentCharacter->name << ' ';
+	*cinfo << "- -1 -1 - ";
+	*cinfo << _ingameID << ' ';
+	*cinfo << (int)_currentCharacter->slot << ' ';
+	*cinfo << (int)_currentCharacter->sex << ' ';
+	*cinfo << (int)_currentCharacter->hair << ' ';
+	*cinfo << (int)_currentCharacter->color << ' ';
+	*cinfo << "0 " << (int)_currentCharacter->level << " 0 0 0 0 0 0";
+	cinfo->send(this);
+}
+
+void Client::sendCharacterLevel()
+{
+	Packet* lev = gFactory->make(PacketType::SERVER_GAME, &_session, NString("lev "));
+	*lev << (int)_currentCharacter->level << ' ' << _currentCharacter->experience << ' ';
+	*lev << (int)_currentCharacter->profession.level << ' ' << _currentCharacter->profession.experience << ' ';
+	*lev << 300 << ' ' << 500 << ' ';
+	*lev << 0 << ' ' << (int)(_currentCharacter->level + 1);
+	lev->send(this);
+}
+
+void Client::sendCharacterStatus()
+{
+	Packet* stat = gFactory->make(PacketType::SERVER_GAME, &_session, NString("stat "));
+	*stat << _currentCharacter->maxHP << ' ' << _currentCharacter->maxHP << ' ';
+	*stat << _currentCharacter->maxMP << ' ' << _currentCharacter->maxMP << ' ';
+	*stat << 0 << ' ' << 1024;
+	stat->send(this);
+}
+
+void Client::sendCharacterPosition()
+{
+	Packet* at = gFactory->make(PacketType::SERVER_GAME, &_session, NString("at "));
+	*at << _ingameID << ' ';
+	*at << _currentMap->id() << ' ';
+	*at << _position.x << ' ';
+	*at << _position.y << ' ';
+	*at << "2 0 0 1 -1";
+	at->send(this);
+}
+
+void Client::sendCharacterMap()
+{
+	Packet* cmap = gFactory->make(PacketType::SERVER_GAME, &_session, NString("c_map 0 "));
+	*cmap << _currentMap->id() << " 1";
+	cmap->send(this);
+}
 
 void Client::onRead(NString packet)
 {
