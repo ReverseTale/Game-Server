@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <list>
+#include <vector>
 #include <chrono>
 
 
@@ -37,6 +38,12 @@ struct Mob
 	high_resolution_clock::time_point lastStatusChange;
 };
 
+struct Broadcaster
+{
+	Net::Packet* packet;
+	std::vector<Client*> exceptions;
+};
+
 class Map
 {
 public:
@@ -47,7 +54,7 @@ public:
 	void update();
 
 	void addPlayer(Client* client);
-	void broadcastPacket(Net::Packet* packet);
+	void broadcastPacket(Net::Packet* packet, std::vector<Client*>&& exceptions = {});
 
 private:
 	int _id;
@@ -57,5 +64,5 @@ private:
 	std::list<Client*> _players;
 	std::list<Mob*> _mobs;
 
-	std::list<Net::Packet*> _broadcastList;
+	std::list<Broadcaster*> _broadcastList;
 };

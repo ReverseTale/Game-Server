@@ -647,7 +647,7 @@ bool WorldHandler::processWalk(ClientWork* work)
 
 		Packet* mv = gFactory->make(PacketType::SERVER_GAME, nullptr, NString("mv 1 ") << client->_ingameID << ' ' << x << ' ' << y << ' ' << speed);
 		std::cout << "Broadcasting: " << mv->data().get() << std::endl;
-		client->getMap()->broadcastPacket(mv);
+		client->getMap()->broadcastPacket(mv, { client });
 	}
 
 	return true;
@@ -655,18 +655,26 @@ bool WorldHandler::processWalk(ClientWork* work)
 
 bool WorldHandler::chatMessage(ClientWork* work)
 {
+	auto client = work->client();
+	std::string msg = work->packet().tokens().str(2);
+	for (int i = 3; i < work->packet().tokens().length(); ++i)
+	{
+		msg += ' ' + work->packet().tokens().str(i);
+	}
+
 	// 213 say !
 	if (work->packet().tokens()[2][0] == '!')
 	{
-		std::string msg = work->packet().tokens().str(2);
-		for (int i = 3; i < work->packet().tokens().length(); ++i)
-		{
-			msg += ' ' + work->packet().tokens().str(i);
-		}
-
-		auto client = work->client();
 		Packet* packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(msg.substr(1)));
 		packet->send(client);
+	}
+	else
+	{
+		// Broadcast message
+		Packet* packet = gFactory->make(PacketType::SERVER_GAME, nullptr, NString("say 1 "));
+		*packet << client->id() << ' ';
+		*packet << "0 " << msg;
+		client->getMap()->broadcastPacket(packet, { client });
 	}
 
 	return true;

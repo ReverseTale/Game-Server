@@ -75,13 +75,22 @@ void Map::update()
 
 	while (!_broadcastList.empty())
 	{
-		Packet* packet = _broadcastList.front();
+		Broadcaster* broadcaster = _broadcastList.front();
 		_broadcastList.pop_front();
 
 		for (auto* client : _players)
 		{
-			Packet* broadcastPacket = packet->clone(client->session());
-			packet->send(client);
+			if (!broadcaster->exceptions.empty())
+			{
+				auto it = std::find(broadcaster->exceptions.begin(), broadcaster->exceptions.end(), client);
+				if (it != broadcaster->exceptions.end())
+				{
+					continue;
+				}
+			}
+
+			Packet* broadcastPacket = broadcaster->packet->clone(client->session());
+			broadcaster->packet->send(client);
 		}
 	}
 }
@@ -123,34 +132,29 @@ void Map::addPlayer(Client* client)
 	*spawn << "0 0 0 0 0 0 1 1 -1 - 2 0 0 0 0 ";
 	*spawn << (int)client->pj()->level << ' ';
 	*spawn << "0 0 0 10 0";
-
-	std::cout << "Sending: " << spawn->data().get() << "::::" << std::endl;
-
-	broadcastPacket(spawn);
+	broadcastPacket(spawn, { client });
 
 	std::lock_guard<std::mutex> lock(_playersMutex);
 	
-	for (auto* client : _players)
+	for (auto* other : _players)
 	{
-		spawn = gFactory->make(PacketType::SERVER_GAME, client->session(), NString("in 1 "));
-		*spawn << client->pj()->name << " - ";
-		*spawn << client->id() << ' ';
-		*spawn << client->pos().x << ' ';
-		*spawn << client->pos().y << ' ';
+		spawn = gFactory->make(PacketType::SERVER_GAME, other->session(), NString("in 1 "));
+		*spawn << other->pj()->name << " - ";
+		*spawn << other->id() << ' ';
+		*spawn << other->pos().x << ' ';
+		*spawn << other->pos().y << ' ';
 		*spawn << "2 0 ";
-		*spawn << (int)client->pj()->sex << ' ';
-		*spawn << (int)client->pj()->hair << ' ';
-		*spawn << (int)client->pj()->color << ' ';
+		*spawn << (int)other->pj()->sex << ' ';
+		*spawn << (int)other->pj()->hair << ' ';
+		*spawn << (int)other->pj()->color << ' ';
 		*spawn << "0 ";
 		*spawn << "202.13.3.8.-1.-1.-1.-1 ";
-		*spawn << client->pj()->hpPercent() << ' ';
-		*spawn << client->pj()->mpPercent() << ' ';
+		*spawn << other->pj()->hpPercent() << ' ';
+		*spawn << other->pj()->mpPercent() << ' ';
 		*spawn << "0 -1 ";
 		*spawn << "0 0 0 0 0 0 1 1 -1 - 2 0 0 0 0 ";
-		*spawn << (int)client->pj()->level << ' ';
+		*spawn << (int)other->pj()->level << ' ';
 		*spawn << "0 0 0 10 0";
-		broadcastPacket(spawn);
-
 		spawn->send(client);
 	}
 
@@ -158,7 +162,7 @@ void Map::addPlayer(Client* client)
 	_needsUpdate = true;
 }
 
-void Map::broadcastPacket(Packet* packet)
+void Map::broadcastPacket(Packet* packet, std::vector<Client*>&& exceptions)
 {
-	_broadcastList.emplace_back(packet);
+	_broadcastList.emplace_back(new Broadcaster{ packet, exceptions });
 }
