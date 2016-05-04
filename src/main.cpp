@@ -28,13 +28,13 @@ namespace fs = std::experimental::filesystem;
 #include "database.h"
 #include "asyncwork.h"
 #include "client.h"
+#include "map_manager.h"
 
 
 using namespace Net;
 class Client;
 
 boost::lockfree::queue<AbstractWork*> asyncWork(2048);
-
 
 int main(int argc, char** argv)
 {
@@ -50,6 +50,7 @@ int main(int argc, char** argv)
 
 	Database::initialize({}, "login");
 	Database::initialize({}, "characters");
+	Database::initialize({}, "world");
 	assert(gPool->getActiveWorkerCount() < gPool->getWorkerCount() && "Not enought threads to continue");
 
 	while (true)
@@ -67,6 +68,9 @@ int main(int argc, char** argv)
 				}
 			}
 		}
+
+		MapManager::get()->update();
+		//gPool->waitAll();
 
 		// TODO: Have a constant heartbeat
 		std::this_thread::sleep_for(std::chrono::milliseconds(50));

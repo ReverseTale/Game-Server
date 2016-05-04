@@ -71,6 +71,7 @@ public:
 	bool receivedNPINFO(ClientWork* work);
 
 	bool processWalk(ClientWork* work);
+	bool chatMessage(ClientWork* work);
 
 public:
 	Client();
