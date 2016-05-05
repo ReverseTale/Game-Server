@@ -62,6 +62,7 @@ void Client::sendCharacterLevel()
 	*lev << (int)_currentCharacter->profession.level << ' ' << _currentCharacter->profession.experience << ' ';
 	*lev << 300 << ' ' << 500 << ' ';
 	*lev << 0 << ' ' << (int)(_currentCharacter->level + 1);
+	*lev << " 0 0 3";
 	lev->send(this);
 }
 
