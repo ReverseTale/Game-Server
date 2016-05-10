@@ -284,6 +284,13 @@ bool WorldHandler::createCharacter(ClientWork* work)
 			"hair" << hair <<
 			"color" << color <<
 			"level" << (int)1 <<
+			"hp" << (int)200 <<
+			"mp" << (int)200 <<
+			"exp" << (int)0 << 
+                        "profession" << open_document <<
+				"level" << (int)1 <<
+				"exp" << (int)0 <<
+			close_document <<
 			finalize;
 
 		try
@@ -668,7 +675,7 @@ bool WorldHandler::chatMessage(ClientWork* work)
 	{
 	        auto packetdata = msg.substr(1);
 		Packet* packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(packetdata));
-		packet->send(client);
+		client->getMap()->broadcastPacket(packet);
 	}
 	else
 	{
