@@ -34,12 +34,15 @@ extern boost::lockfree::queue<AbstractWork*> asyncWork;
 
 
 Client::Client() :
+	Entity{1},
 	_currentWork(MAKE_WORK(&WorldHandler::handleConnect)),
 	_phase(CurrentPhase::SELECTION_SCREEN),
 	_currentCharacter(nullptr),
-	_currentMap(nullptr),
-	_position{ 52, 135 }
-{}
+	_currentMap(nullptr)
+{
+	_position.x = 52;
+	_position.y = 135;
+}
 
 void Client::sendCharacterInformation()
 {
@@ -91,6 +94,34 @@ void Client::sendCharacterMap()
 	Packet* cmap = gFactory->make(PacketType::SERVER_GAME, &_session, NString("c_map 0 "));
 	*cmap << _currentMap->id() << " 1";
 	cmap->send(this);
+}
+
+NString Client::getSpawnPacket()
+{
+	if (_mustRegenSpawn)
+	{
+		_mustRegenSpawn = false;
+
+		_spawnPacket = Entity::getSpawnPacket();
+		_spawnPacket << pj()->name << " - ";
+		_spawnPacket << id() << ' ';
+		_spawnPacket << pos().x << ' ';
+		_spawnPacket << pos().y << ' ';
+		_spawnPacket << "2 0 ";
+		_spawnPacket << (int)pj()->sex << ' ';
+		_spawnPacket << (int)pj()->hair << ' ';
+		_spawnPacket << (int)pj()->color << ' ';
+		_spawnPacket << "0 ";
+		_spawnPacket << "202.13.3.8.-1.-1.-1.-1 ";
+		_spawnPacket << pj()->hpPercent() << ' ';
+		_spawnPacket << pj()->mpPercent() << ' ';
+		_spawnPacket << "0 -1 ";
+		_spawnPacket << "0 0 0 0 0 0 1 1 -1 - 2 0 0 0 0 ";
+		_spawnPacket << (int)pj()->level << ' ';
+		_spawnPacket << "0 0 0 10 0";
+	}
+
+	return _spawnPacket;
 }
 
 void Client::onRead(NString packet)

@@ -1,42 +1,19 @@
 #pragma once
 
+#include "common.h"
+
 #include <mutex>
 #include <list>
 #include <vector>
-#include <chrono>
 
 
 class Client;
+class Mob;
 
 namespace Net
 {
 	class Packet;
 }
-
-enum class MobStatus
-{
-	IDLE,
-	MOVING
-};
-
-using high_resolution_clock = std::chrono::high_resolution_clock;
-
-struct Mob
-{
-	int type;
-	int id;
-	uint32_t ingameID;
-	int x;
-	int y;
-	int radius;
-	int maxHp;
-	int maxMp;
-	int hp;
-	int mp;
-
-	MobStatus status;
-	high_resolution_clock::time_point lastStatusChange;
-};
 
 struct Broadcaster
 {

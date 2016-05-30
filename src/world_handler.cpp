@@ -641,11 +641,12 @@ bool WorldHandler::processWalk(ClientWork* work)
 		// TODO: Pathfinding
 		client->pos().x = x;
 		client->pos().y = y;
+		client->update();
 
 		Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->_ingameID << " 0 0 " << speed);
 		cond->send(client);
 
-		Packet* mv = gFactory->make(PacketType::SERVER_GAME, nullptr, NString("mv 1 ") << client->_ingameID << ' ' << x << ' ' << y << ' ' << speed);
+		Packet* mv = gFactory->make(PacketType::SERVER_GAME, nullptr, client->getMovementPacket());
 		std::cout << "Broadcasting: " << mv->data().get() << std::endl;
 		client->getMap()->broadcastPacket(mv, { client });
 	}
