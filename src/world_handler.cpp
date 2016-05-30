@@ -6,6 +6,7 @@
 #include "world_handler.h"
 
 #include <map>
+#include <string>
 
 #include <threadpool.h>
 #include <Game/packet.h>
@@ -283,6 +284,13 @@ bool WorldHandler::createCharacter(ClientWork* work)
 			"hair" << hair <<
 			"color" << color <<
 			"level" << (int)1 <<
+			"hp" << (int)200 <<
+			"mp" << (int)200 <<
+			"exp" << (int)0 << 
+                        "profession" << open_document <<
+				"level" << (int)1 <<
+				"exp" << (int)0 <<
+			close_document <<
 			finalize;
 
 		try
@@ -666,8 +674,9 @@ bool WorldHandler::chatMessage(ClientWork* work)
 	// 213 say !
 	if (work->packet().tokens()[2][0] == '!')
 	{
-		Packet* packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(msg.substr(1)));
-		packet->send(client);
+	        auto packetdata = msg.substr(1);
+		Packet* packet = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(packetdata));
+		client->getMap()->broadcastPacket(packet);
 	}
 	else
 	{
