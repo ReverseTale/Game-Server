@@ -28,7 +28,7 @@ add_executable(ReverseTale-GameServer ${GameServer_SOURCES})
 # ---[ Link dependencies libraries
 target_link_libraries(ReverseTale-GameServer
     ReverseTale-CommonServer
-    pthread
+ #   pthread
 )
 
 # ---[ Set C++11 standard

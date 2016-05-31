@@ -187,6 +187,19 @@ bool WorldHandler::sendConnectionResult(FutureWork<bool>* work)
 					}
 				});
 
+				for (auto&& item : doc["items"].get_array().value)
+				{
+					uint8_t pos = item["position"].get_int32();
+
+					client->_characters.back()->items.emplace(pos, Item{
+						pos,
+						item["id"].get_int32(),
+						item["rare"].get_int32(),
+						item["upgrade"].get_int32(),
+						item["type"].get_int32()
+					});
+				}
+
 				std::cout << "New char: " << std::endl <<
 					"\t" << client->_characters.back()->name << std::endl <<
 					"\t" << client->_characters.back()->color << std::endl;
@@ -229,13 +242,14 @@ bool WorldHandler::sendCharactersList(FutureWork<bool>* work)
 
 			if (pj->slot == 0)
 			{
-				*clist << "-1.12.1.8.-1.-1.-1.-1 1 1  1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
+				// -1.12.1.8.-1.-1.-1.-1
+				*clist << pj->getItemsList() << " 1 1  1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
 			}
 			else
 			{
-				*clist << "-1.-1.-1.-1.-1.-1.-1.-1 1 1 1 -1 0";
+				*clist << pj->getItemsList() << " 1 1 1 -1 0";
 			}
-
+			
 			std::cout << "Sending player " << pj->name << std::endl;
 			std::cout << clist->data().get() << std::endl;
 
@@ -287,12 +301,34 @@ bool WorldHandler::createCharacter(ClientWork* work)
 			"hp" << (int)200 <<
 			"mp" << (int)200 <<
 			"exp" << (int)0 << 
-                        "profession" << open_document <<
+			"profession" << open_document <<
 				"level" << (int)1 <<
 				"exp" << (int)0 <<
 			close_document <<
+			"items" << open_array << 
+				open_document <<
+					"position" << (int)0 <<
+					"id" << (int)1 <<
+					"rare" << (int)0 <<
+					"upgrade" << (int)0 <<
+					"type" << (int)0 <<
+				close_document <<
+				open_document <<
+					"position" << (int)1 <<
+					"id" << (int)12 <<
+					"rare" << (int)0 <<
+					"upgrade" << (int)0 <<
+					"type" << (int)0 <<
+				close_document <<
+				open_document <<
+					"position" << (int)5 <<
+					"id" << (int)8 <<
+					"rare" << (int)0 <<
+					"upgrade" << (int)0 <<
+					"type" << (int)0 <<
+				close_document <<
+			close_array <<
 			finalize;
-
 		try
 		{
 			db["characters"].insert_one(character.view());
@@ -418,9 +454,8 @@ bool WorldHandler::receivedLBS(ClientWork* work)
 	printf("Client using ID: %d\n", client->_ingameID);
 	client->sendCharacterInformation();
 
-
 	// [POS.ID.CALIDAD.MEJORA.??]
-	Packet* equip = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("equip 0 0 0.1.0.0.0 1.12.0.0.0 5.8.0.0.0"));
+	Packet* equip = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("equip 0 0 ") << client->pj()->getCompleteItemsList().get());
 	equip->send(client);
 
 	client->sendCharacterLevel();

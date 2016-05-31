@@ -112,7 +112,7 @@ NString Client::getSpawnPacket()
 		_spawnPacket << (int)pj()->hair << ' ';
 		_spawnPacket << (int)pj()->color << ' ';
 		_spawnPacket << "0 ";
-		_spawnPacket << "202.13.3.8.-1.-1.-1.-1 ";
+		_spawnPacket << pj()->getItemsList().get() << ' ';
 		_spawnPacket << pj()->hpPercent() << ' ';
 		_spawnPacket << pj()->mpPercent() << ' ';
 		_spawnPacket << "0 -1 ";
