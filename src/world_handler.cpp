@@ -806,13 +806,10 @@ bool WorldHandler::moveItem(ClientWork* work)
 			{
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
 				*ivn << work->client()->pj()->getCompleteItemInfo(destItem, destPos).get();
-				printf(">> %s\n", ivn->data().get());
-
 				ivn->send(work->client());
 
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
 				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
-				printf(">> %s\n", ivn->data().get());
 				ivn->send(work->client());
 
 				destItem->pos = itemPos;
@@ -820,14 +817,12 @@ bool WorldHandler::moveItem(ClientWork* work)
 
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
 				*ivn << work->client()->pj()->getCompleteItemInfo(destItem).get();
-				printf(">> %s\n", ivn->data().get());
 				ivn->send(work->client());
 			}
 			else
 			{
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
 				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
-				printf(">> %s\n", ivn->data().get());
 				ivn->send(work->client());
 			}
 
@@ -835,7 +830,6 @@ bool WorldHandler::moveItem(ClientWork* work)
 
 			ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
 			*ivn << work->client()->pj()->getCompleteItemInfo(item).get();
-			printf(">> %s\n", ivn->data().get());
 			ivn->send(work->client());
 		}
 
