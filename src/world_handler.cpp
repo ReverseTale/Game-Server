@@ -46,6 +46,9 @@ PacketHandler packetHandler[] = {
 	{ "npinfo",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::receivedNPINFO) } },
 	{ "walk",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::processWalk) } },
 	{ "say",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::chatMessage) } },
+	{ "remove",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::removeItem) } },
+	{ "wear",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::equipItem) } },
+	{ "mvi",		{ CurrentPhase::INGAME,				MAKE_WORK(&WorldHandler::moveItem) } },
 
 	{ "", { CurrentPhase::NONE, nullptr } }
 };
@@ -191,7 +194,7 @@ bool WorldHandler::sendConnectionResult(FutureWork<bool>* work)
 				{
 					uint8_t pos = item["position"].get_int32();
 
-					client->_characters.back()->items.emplace(pos, Item{
+					client->_characters.back()->items.emplace(pos, new Item{
 						pos,
 						item["id"].get_int32(),
 						item["rare"].get_int32(),
@@ -723,6 +726,123 @@ bool WorldHandler::chatMessage(ClientWork* work)
 	}
 
 	return true;
+}
+
+bool WorldHandler::removeItem(ClientWork* work)
+{
+	auto client = work->client();
+
+	if (work->packet().tokens().length() == 4)
+	{
+		uint8_t itemPos = work->packet().tokens().from_int<uint8_t>(2);
+		uint8_t unk0 = work->packet().tokens().from_int<uint8_t>(3);
+
+		// unk0 == 0
+
+		auto item = client->pj()->unequip(itemPos);
+		if (item)
+		{
+			Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->id() << " 0 0 11");
+			cond->send(client);
+
+			client->sendCharacterStatus();
+
+			Packet* sc = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("sc 0 0 30 38 30 4 70 1 0 32 34 41 2 70 0 17 34 19 34 17 0 0 0 0"));
+			sc->send(client);
+
+			Packet* ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+			*ivn << work->client()->pj()->getCompleteItemInfo(item).get();
+			ivn->send(work->client());
+
+			Packet* equip = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("equip 0 0 ") << client->pj()->getCompleteItemsList().get());
+			equip->send(work->client());
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool WorldHandler::equipItem(ClientWork* work)
+{
+	auto client = work->client();
+
+	if (work->packet().tokens().length() == 4)
+	{
+		uint8_t itemPos = work->packet().tokens().from_int<uint8_t>(2);
+		uint8_t unk0 = work->packet().tokens().from_int<uint8_t>(3);
+
+		// TODO: Item equiping
+
+		return true;
+	}
+
+	return false;
+}
+
+bool WorldHandler::moveItem(ClientWork* work)
+{
+	auto client = work->client();
+
+	if (work->packet().tokens().length() == 6)
+	{
+		uint8_t type = work->packet().tokens().from_int<uint8_t>(2);
+		uint8_t itemPos = work->packet().tokens().from_int<uint8_t>(3);
+		uint8_t count = work->packet().tokens().from_int<uint8_t>(4);
+		uint8_t destPos = work->packet().tokens().from_int<uint8_t>(5);
+
+		// TODO: Item equiping
+		Packet* ivn = nullptr;
+		auto item = client->pj()->getItem(itemPos, &client->pj()->inventory);
+		auto destItem = client->pj()->getItem(destPos, &client->pj()->inventory);
+		if (item)
+		{
+			client->pj()->inventory.erase(destPos);
+			client->pj()->inventory.erase(itemPos);
+
+			item->pos = destPos;
+			if (destItem)
+			{
+				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+				*ivn << work->client()->pj()->getCompleteItemInfo(destItem, destPos).get();
+				printf(">> %s\n", ivn->data().get());
+
+				ivn->send(work->client());
+
+				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
+				printf(">> %s\n", ivn->data().get());
+				ivn->send(work->client());
+
+				destItem->pos = itemPos;
+				client->pj()->inventory.emplace(itemPos, destItem);
+
+				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+				*ivn << work->client()->pj()->getCompleteItemInfo(destItem).get();
+				printf(">> %s\n", ivn->data().get());
+				ivn->send(work->client());
+			}
+			else
+			{
+				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
+				printf(">> %s\n", ivn->data().get());
+				ivn->send(work->client());
+			}
+
+			client->pj()->inventory.emplace(destPos, item);
+
+			ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+			*ivn << work->client()->pj()->getCompleteItemInfo(item).get();
+			printf(">> %s\n", ivn->data().get());
+			ivn->send(work->client());
+		}
+
+		return true;
+	}
+
+	return false;
 }
 
 void WorldHandler::sendError(Client* client, std::string&& error)

@@ -63,6 +63,10 @@ public:
 	bool processWalk(ClientWork* work);
 	bool chatMessage(ClientWork* work);
 
+	bool removeItem(ClientWork* work);
+	bool equipItem(ClientWork* work);
+	bool moveItem(ClientWork* work);
+
 	void sendError(Client* client, std::string&& error);
 
 private:
