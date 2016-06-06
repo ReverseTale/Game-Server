@@ -44,6 +44,15 @@ Client::Client() :
 	_position.y = 135;
 }
 
+void Character::setup()
+{
+	// Setup bag (TODO: Cleanup memory for this objects)
+	equipment = new Inventory(0);
+	bag = new Inventory(1);
+	inventoryMapper.emplace(0, equipment);
+	inventoryMapper.emplace(1, bag);
+}
+
 void Client::sendCharacterInformation()
 {
 	Packet* cinfo = gFactory->make(PacketType::SERVER_GAME, &_session, NString("c_info "));
@@ -112,7 +121,7 @@ NString Client::getSpawnPacket()
 		_spawnPacket << (int)pj()->hair << ' ';
 		_spawnPacket << (int)pj()->color << ' ';
 		_spawnPacket << "0 ";
-		_spawnPacket << pj()->getItemsList().get() << ' ';
+		_spawnPacket << pj()->equipment->getItemsList().get() << ' ';
 		_spawnPacket << pj()->hpPercent() << ' ';
 		_spawnPacket << pj()->mpPercent() << ' ';
 		_spawnPacket << "0 -1 ";

@@ -190,17 +190,20 @@ bool WorldHandler::sendConnectionResult(FutureWork<bool>* work)
 					}
 				});
 
+				client->_characters.back()->setup();
+
 				for (auto&& item : doc["items"].get_array().value)
 				{
-					uint8_t pos = item["position"].get_int32();
+					uint8_t tab = item["position"]["tab"].get_int32();
+					uint8_t pos = item["position"]["idx"].get_int32();
 
-					client->_characters.back()->items.emplace(pos, new Item{
+					client->_characters.back()->inventoryMapper[tab]->insert(new Item{
 						pos,
 						item["id"].get_int32(),
 						item["rare"].get_int32(),
 						item["upgrade"].get_int32(),
 						item["type"].get_int32()
-					});
+					}, pos);
 				}
 
 				std::cout << "New char: " << std::endl <<
@@ -246,11 +249,11 @@ bool WorldHandler::sendCharactersList(FutureWork<bool>* work)
 			if (pj->slot == 0)
 			{
 				// -1.12.1.8.-1.-1.-1.-1
-				*clist << pj->getItemsList() << " 1 1  1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
+				*clist << pj->equipment->getItemsList() << " 1 1  1 -1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1.-1 0 0";
 			}
 			else
 			{
-				*clist << pj->getItemsList() << " 1 1 1 -1 0";
+				*clist << pj->equipment->getItemsList() << " 1 1 1 -1 0";
 			}
 			
 			std::cout << "Sending player " << pj->name << std::endl;
@@ -310,21 +313,30 @@ bool WorldHandler::createCharacter(ClientWork* work)
 			close_document <<
 			"items" << open_array << 
 				open_document <<
-					"position" << (int)0 <<
+					"position" << open_document <<
+						"tab" << (int)0 <<
+						"idx" << (int)0 <<
+					close_document <<
 					"id" << (int)1 <<
 					"rare" << (int)0 <<
 					"upgrade" << (int)0 <<
 					"type" << (int)0 <<
 				close_document <<
 				open_document <<
-					"position" << (int)1 <<
+					"position" << open_document <<
+						"tab" << (int)0 <<
+						"idx" << (int)1 <<
+					close_document <<
 					"id" << (int)12 <<
 					"rare" << (int)0 <<
 					"upgrade" << (int)0 <<
 					"type" << (int)0 <<
 				close_document <<
 				open_document <<
-					"position" << (int)5 <<
+					"position" << open_document <<
+						"tab" << (int)0 <<
+						"idx" << (int)5 <<
+					close_document <<
 					"id" << (int)8 <<
 					"rare" << (int)0 <<
 					"upgrade" << (int)0 <<
@@ -458,7 +470,7 @@ bool WorldHandler::receivedLBS(ClientWork* work)
 	client->sendCharacterInformation();
 
 	// [POS.ID.CALIDAD.MEJORA.??]
-	Packet* equip = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("equip 0 0 ") << client->pj()->getCompleteItemsList().get());
+	Packet* equip = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("equip 0 0 ") << client->pj()->equipment->getCompleteItemsList().get());
 	equip->send(client);
 
 	client->sendCharacterLevel();
@@ -738,10 +750,11 @@ bool WorldHandler::removeItem(ClientWork* work)
 		uint8_t unk0 = work->packet().tokens().from_int<uint8_t>(3);
 
 		// unk0 == 0
-
-		auto item = client->pj()->unequip(itemPos);
-		if (item)
+		Item* item = client->pj()->equipment->getItem(itemPos);
+		if (item && client->pj()->bag->insert(item))
 		{
+			client->pj()->equipment->remove_unsecure(itemPos);
+
 			Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->id() << " 0 0 11");
 			cond->send(client);
 
@@ -751,10 +764,10 @@ bool WorldHandler::removeItem(ClientWork* work)
 			sc->send(client);
 
 			Packet* ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-			*ivn << work->client()->pj()->getCompleteItemInfo(item).get();
+			*ivn << work->client()->pj()->bag->getCompleteItemInfo(item).get();
 			ivn->send(work->client());
 
-			Packet* equip = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("equip 0 0 ") << client->pj()->getCompleteItemsList().get());
+			Packet* equip = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("equip 0 0 ") << client->pj()->equipment->getCompleteItemsList().get());
 			equip->send(work->client());
 		}
 
@@ -772,8 +785,30 @@ bool WorldHandler::equipItem(ClientWork* work)
 	{
 		uint8_t itemPos = work->packet().tokens().from_int<uint8_t>(2);
 		uint8_t unk0 = work->packet().tokens().from_int<uint8_t>(3);
+		
+		auto* item = client->pj()->bag->getItem(itemPos);
+		if (item)
+		{
+			// TODO: Parse real items and get correct position for it!
+			client->pj()->bag->remove_unsecure(itemPos);
+			client->pj()->equipment->insert(item);
 
-		// TODO: Item equiping
+			Packet* cond = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("cond 1 ") << client->id() << " 0 0 11");
+			cond->send(client);
+
+			client->sendCharacterStatus();
+
+			Packet* sc = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("sc 0 0 30 38 30 4 70 1 0 32 34 41 2 70 0 17 34 19 34 17 0 0 0 0"));
+			sc->send(client);
+
+			Packet* ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
+			*ivn << work->client()->pj()->bag->getCompleteItemInfo(item, itemPos).get();
+			ivn->send(work->client());
+
+			Packet* equip = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("equip 0 0 ") << client->pj()->equipment->getCompleteItemsList().get());
+			equip->send(work->client());
+
+		}
 
 		return true;
 	}
@@ -792,44 +827,44 @@ bool WorldHandler::moveItem(ClientWork* work)
 		uint8_t count = work->packet().tokens().from_int<uint8_t>(4);
 		uint8_t destPos = work->packet().tokens().from_int<uint8_t>(5);
 
+		auto* item = client->pj()->bag->getItem(itemPos);
+		auto* destItem = client->pj()->bag->getItem(destPos);
+
 		// TODO: Item equiping
 		Packet* ivn = nullptr;
-		auto item = client->pj()->getItem(itemPos, &client->pj()->inventory);
-		auto destItem = client->pj()->getItem(destPos, &client->pj()->inventory);
 		if (item)
 		{
-			client->pj()->inventory.erase(destPos);
-			client->pj()->inventory.erase(itemPos);
+			client->pj()->bag->remove_unsecure(destPos);
+			client->pj()->bag->remove_unsecure(itemPos);
 
 			item->pos = destPos;
 			if (destItem)
 			{
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-				*ivn << work->client()->pj()->getCompleteItemInfo(destItem, destPos).get();
+				*ivn << work->client()->pj()->bag->getCompleteItemInfo(destItem, destPos).get();
 				ivn->send(work->client());
 
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
+				*ivn << work->client()->pj()->bag->getCompleteItemInfo(item, itemPos).get();
 				ivn->send(work->client());
 
-				destItem->pos = itemPos;
-				client->pj()->inventory.emplace(itemPos, destItem);
+				client->pj()->bag->insert(destItem, itemPos);
 
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-				*ivn << work->client()->pj()->getCompleteItemInfo(destItem).get();
+				*ivn << work->client()->pj()->bag->getCompleteItemInfo(destItem).get();
 				ivn->send(work->client());
 			}
 			else
 			{
 				ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-				*ivn << work->client()->pj()->getCompleteItemInfo(item, itemPos).get();
+				*ivn << work->client()->pj()->bag->getCompleteItemInfo(item, itemPos).get();
 				ivn->send(work->client());
 			}
 
-			client->pj()->inventory.emplace(destPos, item);
+			client->pj()->bag->insert(item, destPos);
 
 			ivn = gFactory->make(PacketType::SERVER_GAME, &work->client()->_session, NString("ivn 0 "));
-			*ivn << work->client()->pj()->getCompleteItemInfo(item).get();
+			*ivn << work->client()->pj()->bag->getCompleteItemInfo(item).get();
 			ivn->send(work->client());
 		}
 
