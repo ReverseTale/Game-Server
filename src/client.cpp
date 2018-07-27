@@ -1,13 +1,13 @@
-#include "client.h"
-#include "asyncwork.h"
-#include "database.h"
-#include "map_manager.h"
-#include "map.h"
-#include "world_handler.h"
+#include "GameServer/client.h"
+#include "GameServer/asyncwork.h"
+#include "CommonServer/database.h"
+#include "GameServer/map_manager.h"
+#include "GameServer/map.h"
+#include "GameServer/world_handler.h"
 
 #include <map>
 
-#include <threadpool.h>
+#include <CommonServer/threadpool.h>
 #include <Game/packet.h>
 #include <threadpool11/threadpool11.hpp>
 

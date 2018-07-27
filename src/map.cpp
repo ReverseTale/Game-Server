@@ -1,8 +1,8 @@
-#include "map.h"
-#include "client.h"
-#include "database.h"
-#include "world_handler.h"
-#include "mob.h"
+#include "GameServer/map.h"
+#include "GameServer/client.h"
+#include "CommonServer/database.h"
+#include "GameServer/world_handler.h"
+#include "GameServer/mob.h"
 
 #include <Game/packet.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common.h"
+#include "GameServer/common.h"
 
 #include <mutex>
 #include <list>

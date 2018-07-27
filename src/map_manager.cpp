@@ -1,6 +1,6 @@
-#include "map_manager.h"
-#include "map.h"
-#include "threadpool.h"
+#include "GameServer/map_manager.h"
+#include "GameServer/map.h"
+#include "CommonServer/threadpool.h"
 
 MapManager* MapManager::_instance = nullptr;
 

@@ -12,11 +12,11 @@
 #include <Tools/server_socket.h>
 #include <Tools/accepted_socket.h>
 #include <Tools/utils.h>
-#include <reactor.h>
+#include <CommonServer/reactor.h>
 
 #include <inih/INIReader.h>
 
-#include <ReverseTale.h>
+#include <CommonServer/ReverseTale.h>
 #if HAVE_EXPERIMENTAL_FS
 #include <experimental/filesystem>
 
@@ -25,11 +25,11 @@ namespace fs = std::experimental::filesystem;
 #include <Tools/filesystem.h>
 #endif
 
-#include "database.h"
-#include "asyncwork.h"
-#include "client.h"
-#include "map_manager.h"
-#include "world_handler.h"
+#include "CommonServer/database.h"
+#include "GameServer/asyncwork.h"
+#include "GameServer/client.h"
+#include "GameServer/map_manager.h"
+#include "GameServer/world_handler.h"
 
 
 using namespace Net;
@@ -129,7 +129,7 @@ int main(int argc, char** argv)
 	}
 	else
 	{
-	*gameServers << "fail usuario y/o contraseña incorrectos" << (uint8_t)0xA;
+	*gameServers << "fail usuario y/o contraseï¿½a incorrectos" << (uint8_t)0xA;
 	}
 
 	std::cout << "<< " << gameServers->data() << std::endl;

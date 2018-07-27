@@ -1,4 +1,4 @@
-#include "mob.h"
+#include "GameServer/mob.h"
 
 Mob::Mob(int type, int id, uint32_t ingameID, Position pos, int radius, int maxHp, int maxMp, int hp, int mp) :
 	Entity{ type, ingameID },

@@ -1,4 +1,4 @@
-#include "inventory.h"
+#include "GameServer/inventory.h"
 
 Inventory::Inventory(int idx) :
 	_idx(idx)

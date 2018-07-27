@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "asyncwork.h"
+#include "GameServer/asyncwork.h"
 
 #include <Tools/utils.h>
 #include <Tools/accepted_socket.h>

@@ -1,14 +1,14 @@
-#include "client.h"
-#include "asyncwork.h"
-#include "database.h"
-#include "map_manager.h"
-#include "map.h"
-#include "world_handler.h"
+#include "GameServer/client.h"
+#include "GameServer/asyncwork.h"
+#include "CommonServer/database.h"
+#include "GameServer/map_manager.h"
+#include "GameServer/map.h"
+#include "GameServer/world_handler.h"
 
 #include <map>
 #include <string>
 
-#include <threadpool.h>
+#include <CommonServer/threadpool.h>
 #include <Game/packet.h>
 #include <threadpool11/threadpool11.hpp>
 
@@ -604,12 +604,12 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 	Packet* p_clear = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString("p_clear"));
 	p_clear->send(client);
 
-	char* ins[] = {
+	const char* ins[] = {
 		
 		"in 2 1431 1908 102 70 5 100 100 462 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"shop 2 1908 1 0 48 Gestor de Familia",
 		"in 2 915 1907 90 45 0 100 100 54 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
-		"shop 2 1907 1 0 0 Puntuaciones máximas",
+		"shop 2 1907 1 0 0 Puntuaciones mï¿½ximas",
 		"in 2 905 1906 156 5 2 100 100 6567 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"shop 2 1906 1 0 0 Lista de personas buscadas",
 		"in 2 331 1905 59 86 2 100 100 306 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
@@ -627,9 +627,9 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 		"in 2 304 1899 23 100 1 100 100 9 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"shop 2 1899 1 0 6 Mercado de NosVille",
 		"in 2 300 1898 96 65 0 100 100 3 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
-		"shop 2 1898 1 4 1 Información de NosVille",
+		"shop 2 1898 1 4 1 Informaciï¿½n de NosVille",
 		"in 2 302 1897 100 47 7 100 100 4 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
-		"shop 2 1897 1 1 2 Maestro de técnicas",
+		"shop 2 1897 1 1 2 Maestro de tï¿½cnicas",
 		"in 2 301 1896 30 71 0 100 100 1 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"shop 2 1896 1 0 3 Tienda de armas",
 		"in 2 939 1895 81 58 2 100 100 1 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
@@ -641,7 +641,7 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 		"in 2 334 1889 150 25 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"in 2 334 1888 150 19 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"in 2 334 1887 143 25 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
-		//"in 2 334 1886 135 117 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 089 ëëëëëë",
+		//"in 2 334 1886 135 117 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 089 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½",
 		"in 2 334 1885 135 100 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"in 2 334 1884 135 71 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
 		"in 2 334 1883 127 45 2 100 100 0 0 0 -1 1 0 -1 - 0 -1 0 0 0 0 0 0 0 0",
@@ -674,7 +674,7 @@ bool WorldHandler::receivedNPINFO(ClientWork* work)
 		"in 9 1046 172053 69 6 16 0 0 171360"
 	};
 
-	for (char* msg : ins)
+	for (const char* msg : ins)
 	{
 		Packet* spawn = gFactory->make(PacketType::SERVER_GAME, &client->_session, NString(msg));
 		spawn->send(client);

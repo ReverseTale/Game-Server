@@ -1,4 +1,4 @@
-#include "entity.h"
+#include "GameServer/entity.h"
 
 Entity::Entity(uint8_t type, uint32_t ingameID) :
 	_mustRegenSpawn(true),

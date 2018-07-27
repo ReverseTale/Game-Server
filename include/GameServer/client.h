@@ -1,8 +1,8 @@
 #pragma once
 
-#include "asyncwork.h"
-#include "entity.h"
-#include "inventory.h"
+#include "GameServer/asyncwork.h"
+#include "GameServer/entity.h"
+#include "GameServer/inventory.h"
 
 #include <string>
 #include <list>
