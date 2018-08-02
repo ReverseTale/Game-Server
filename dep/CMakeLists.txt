@@ -6,6 +6,7 @@
         TARGET ReverseTale-GameServer
         MODULE "ReverseTale/Library:master"
         INSTALL_NAME ReverseTale-Library
+        ALWAYS_BUILD
     )
 
 #######################
@@ -15,5 +16,6 @@
         TARGET ReverseTale-GameServer
         MODULE "ReverseTale/Common-Server:master"
         INSTALL_NAME ReverseTale-CommonServer
+        ALWAYS_BUILD
         ENSURE_ORDER
     )
