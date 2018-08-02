@@ -15,4 +15,5 @@
         TARGET ReverseTale-GameServer
         MODULE "ReverseTale/Common-Server:master"
         INSTALL_NAME ReverseTale-CommonServer
+        ENSURE_ORDER
     )

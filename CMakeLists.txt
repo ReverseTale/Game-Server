@@ -43,9 +43,6 @@ if (ReverseTale-GameServer_IS_RESOLVED)
         PLATFORM UNIX
     )
 
-    # ---[ Setup some definitions
-    set(DEFINITIONS "MONGOCXX_STATIC" "BSONCXX_STATIC" "_SCL_SECURE_NO_WARNINGS")
-
 	BuildNow(
 		TARGET ReverseTale-GameServer
 		DEFINES ${DEFINITIONS}
@@ -55,4 +52,11 @@ if (ReverseTale-GameServer_IS_RESOLVED)
 	)
 
     MakeInstallable(TARGET ReverseTale-GameServer)
+
+    # Create a Visual Studio Code workspace
+    ExternalInstallDirectory(VARIABLE EXTERNAL_DIRECTORY)
+    get_filename_component(LIBRARY_PATH ${EXTERNAL_DIRECTORY}/src/ReverseTale_Library_master/ ABSOLUTE)
+    get_filename_component(COMMON_SERVER_PATH ${EXTERNAL_DIRECTORY}/src/ReverseTale_Common-Server_master/ ABSOLUTE)
+    get_filename_component(GAME_SERVER_PATH ${CMAKE_SOURCE_DIR} ABSOLUTE)
+    configure_file(${CMAKE_SOURCE_DIR}/project.code-workspace.in ${CMAKE_SOURCE_DIR}/project.code-workspace @ONLY)
 endif()
